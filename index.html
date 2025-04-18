@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KoboCollect Data Dashboard</title>
+  
+  <!-- Import Chart.js from CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+  
+  <!-- Import PapaParse for CSV handling -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+  
+  <style>
+    /* Base styles */
+    :root {
+      --primary-color: #3b82f6;
+      --primary-hover: #2563eb;
+      --secondary-color: #f3f4f6;
+      --text-color: #1f2937;
+      --text-light: #6b7280;
+      --border-color: #e5e7eb;
+      --success-color: #10b981;
+      --warning-color: #f59e0b;
+      --error-color: #ef4444;
+    }
+    
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      line-height: 1.5;
+      color: var(--text-color);
+      background-color: #f9fafb;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    h1, h2, h3 {
+      margin-bottom: 16px;
+      font-weight: 600;
+    }
+    
+    h1 {
+      font-size: 24px;
+    }
+    
+    h2 {
+      font-size: 20px;
+    }
+    
+    h3 {
+      font-size: 18px;
+    }
+    
+    p {
+      margin-bottom: 16px;
+    }
+    
+    /* Layout */
+    .card {
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    
+    .header {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+    
+    @media (min-width: 768px) {
+      .header {
+        flex-direction: row;
+        align-items: center;
+      }
+    }
+    
+    .meta {
+      color: var(--text-light);
+      font-size: 14px;
+      margin-top: 8px;
+    }
+    
+    /* Form elements */
+    .form-group {
+      margin-bottom: 16px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+      font-size: 14px;
+    }
+    
+    input, select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      font-size: 16px;
+      transition: border-color 0.15s;
+    }
+    
+    input:focus, select:focus {
+      border-color: var(--primary-color);
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+    }
+    
+    .form-hint {
+      font-size: 12px;
+      color: var(--text-light);
+      margin-top: 4px;
+    }
+    
+    /* Buttons */
+    .btn {
+      display: inline-block;
+      padding: 10px 16px;
+      font-size: 16px;
+      font-weight: 500;
+      text-align: center;
+      text-decoration: none;
+      border-radius: 6px;
+      transition: background-color 0.15s, transform 0.15s;
+      cursor: pointer;
+      border: none;
+    }
+    
+    .btn-primary {
+      background-color: var(--primary-color);
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background-color: var(--primary-hover);
+    }
+    
+    .btn-secondary {
+      background-color: white;
+      color: var(--text-color);
+      border: 1px solid var(--border-color);
+    }
+    
+    .btn-secondary:hover {
+      background-color: var(--secondary-color);
+    }
+    
+    .btn-block {
+      display: block;
+      width: 100%;
+    }
+    
+    /* Flexbox utilities */
+    .flex {
+      display: flex;
+    }
+    
+    .flex-col {
+      flex-direction: column;
+    }
+    
+    .items-center {
+      align-items: center;
+    }
+    
+    .justify-between {
+      justify-content: space-between;
+    }
+    
+    .justify-center {
+      justify-content: center;
+    }
+    
+    .space-x-2 > * + * {
+      margin-left: 8px;
+    }
+    
+    .space-y-2 > * + * {
+      margin-top: 8px;
+    }
+    
+    .mt-4 {
+      margin-top: 16px;
+    }
+    
+    .mr-2 {
+      margin-right: 8px;
+    }
+    
+    .mb-6 {
+      margin-bottom: 24px;
+    }
+    
+    /* Grid */
+    .grid {
+      display: grid;
+      grid-gap: 16px;
+    }
+    
+    .grid-cols-1 {
+      grid-template-columns: 1fr;
+    }
+    
+    @media (min-width: 768px) {
+      .md\:grid-cols-3 {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+    
+    /* Form layouts */
+    .filters {
+      margin-bottom: 24px;
+    }
+    
+    /* Data display */
+    .chart-container {
+      position: relative;
+      height: 400px;
+      margin-bottom: 24px;
+    }
+    
+    /* Table styles */
+    .table-container {
+      overflow-x: auto;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+    
+    th {
+      background-color: #f9fafb;
+      padding: 12px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-light);
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-color);
+      font-size: 14px;
+    }
+    
+    tr:nth-child(even) {
+      background-color: #f9fafb;
+    }
+    
+    /* Loading state */
+    .loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 60vh;
+    }
+    
+    .spinner {
+      border: 4px solid rgba(0, 0, 0, 0.1);
+      border-left-color: var(--primary-color);
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin-bottom: 16px;
+    }
+    
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+    
+    /* Alerts */
+    .alert {
+      padding: 16px;
+      border-radius: 6px;
+      margin-bottom: 24px;
+      font-size: 14px;
+    }
+    
+    .alert-error {
+      background-color: #fee2e2;
+      color: #b91c1c;
+    }
+    
+    /* Footer */
+    .footer {
+      text-align: center;
+      color: var(--text-light);
+      font-size: 14px;
+      margin-top: 32px;
+    }
+    
+    /* Icons */
+    .icon {
+      width: 20px;
+      height: 20px;
+      vertical-align: middle;
+    }
+    
+    .icon-lg {
+      width: 32px;
+      height: 32px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Dashboard View -->
+  <div id="dashboard-view" class="container">
+    <!-- Header -->
+    <div class="header">
+      <div>
+        <h1 id="dashboard-title">KoboCollect Data Dashboard</h1>
+        <p id="dashboard-meta" class="meta"></p>
+      </div>
+      
+      <div class="flex space-x-2 mt-4">
+        <button id="refresh-data" class="btn btn-secondary">
+          <svg class="icon mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          Refresh Data
+        </button>
+        
+        <button id="export-csv" class="btn btn-primary">
+          <svg class="icon mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          Export CSV
+        </button>
+      </div>
+    </div>
+    
+    <div id="dashboard-error" class="alert alert-error" style="display: none;"></div>
+    
+    <!-- Filters -->
+    <div class="card">
+      <h2>
+        <svg class="icon mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+        </svg>
+        Data Filters
+      </h2>
+      
+      <div class="grid grid-cols-1 md:grid-cols-3">
+        <div class="form-group">
+          <label for="question-select">Question / Field</label>
+          <select id="question-select"></select>
+        </div>
+        
+        <div class="form-group">
+          <label for="timeframe-select">Timeframe</label>
+          <select id="timeframe-select">
+            <option value="all">All Time</option>
+            <option value="week">Last 7 Days</option>
+            <option value="month">Last 30 Days</option>
+            <option value="quarter">Last 90 Days</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="chart-type-select">Chart Type</label>
+          <select id="chart-type-select">
+            <option value="bar">Bar Chart</option>
+            <option value="line">Line Chart</option>
+            <option value="pie">Pie Chart</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Visualization -->
+    <div class="card">
+      <h2 id="chart-title"></h2>
+      <div class="chart-container">
+        <canvas id="data-chart"></canvas>
+      </div>
+    </div>
+    
+    <!-- Data Table -->
+    <div class="card">
+      <h2>
+        <svg class="icon mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+        </svg>
+        <span id="table-title">Raw Data</span>
+      </h2>
+      
+      <div class="table-container">
+        <table id="data-table">
+          <thead>
+            <tr>
+              <!-- Dynamic headers will be added here -->
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Table rows will be added here -->
+          </tbody>
+        </table>
+        
+        <div id="table-pagination" class="mt-4" style="text-align: center; font-size: 14px; color: var(--text-light);"></div>
+      </div>
+    </div>
+    
+    <!-- Footer -->
+    <div class="footer">
+      <p>KoboCollect Data Dashboard | Last updated: <span id="last-updated"></span></p>
+    </div>
+  </div>
+
+  <!-- Loading overlay -->
+  <div id="loading-overlay" class="loading">
+    <div class="spinner"></div>
+    <p>Loading data...</p>
+  </div>
+
+  <script>
+    // KoboToolbox API Configuration
+    const API_CONFIG = {
+      baseUrl: 'https://kf.kobotoolbox.org', // Base URL for the KoboToolbox API
+      assetUid: 'aSxTBHYaectKVJxtbUGFXV', // Your form/asset UID
+      apiToken: '47d7dd3e07cfb0880273e8554b984423bdfece8a' // Your API token
+    };
+
+    // DOM Elements
+    const dashboardView = document.getElementById('dashboard-view');
+    const loadingOverlay = document.getElementById('loading-overlay');
+    
+    const dashboardTitle = document.getElementById('dashboard-title');
+    const dashboardMeta = document.getElementById('dashboard-meta');
+    const dashboardError = document.getElementById('dashboard-error');
+    const refreshDataButton = document.getElementById('refresh-data');
+    const exportCsvButton = document.getElementById('export-csv');
+    
+    const questionSelect = document.getElementById('question-select');
+    const timeframeSelect = document.getElementById('timeframe-select');
+    const chartTypeSelect = document.getElementById('chart-type-select');
+    
+    const chartTitle = document.getElementById('chart-title');
+    const dataChart = document.getElementById('data-chart');
+    
+    const tableTitle = document.getElementById('table-title');
+    const dataTable = document.getElementById('data-table');
+    const tablePagination = document.getElementById('table-pagination');
+    
+    const lastUpdated = document.getElementById('last-updated');
+    
+    // Global state
+    let state = {
+      formData: [],
+      filteredData: [],
+      formMetadata: null,
+      questions: [],
+      selectedQuestion: '',
+      selectedTimeframe: 'all',
+      chartType: 'bar',
+      chartInstance: null,
+      currentPage: 1,
+      rowsPerPage: 10
+    };
+    
+    // Constants
+    const CHART_COLORS = [
+      '#3b82f6', '#10b981', '#f59e0b', '#ef4444', 
+      '#8b5cf6', '#ec4899', '#6366f1', '#14b8a6'
+    ];
+    
+    // Initialize the app
+    function init() {
+      lastUpdated.textContent = new Date().toLocaleString();
+      
+      // Event listeners
+      refreshDataButton.addEventListener('click', fetchKoboData);
+      exportCsvButton.addEventListener('click', exportToCsv);
+      
+      questionSelect.addEventListener('change', handleFilterChange);
+      timeframeSelect.addEventListener('change', handleFilterChange);
+      chartTypeSelect.addEventListener('change', handleFilterChange);
+      
+      // Initial data fetch
+      fetchKoboData();
+    }
+    
+    // Show loading state
+    function showLoading() {
+      loadingOverlay.style.display = 'flex';
+    }
+    
+    // Hide loading state
+    function hideLoading() {
+      loadingOverlay.style.display = 'none';
+    }
+    
+    // Show error message
+    function showError(message) {
+      dashboardError.textContent = message;
+      dashboardError.style.display = 'block';
+    }
+    
+    // Hide error message
+    function hideError() {
+      dashboardError.style.display = 'none';
+    }
+    
+    // Fetch data from KoboToolbox API
+    async function fetchKoboData() {
+      showLoading();
+      hideError();
+      
+      try {
+        // Construct the API URL
+        const apiUrl = `${API_CONFIG.baseUrl}/api/v2/assets/${API_CONFIG.assetUid}/data/?format=json`;
+        
+        // Fetch data with authentication
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Token ${API_CONFIG.apiToken}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`API request failed with status ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        // Process the data
+        state.formData = data.results || [];
+        state.filteredData = [...state.formData];
+        
+        // Extract question fields from the first submission (if available)
+        if (state.formData.length > 0) {
+          const firstSubmission = state.formData[0];
+          const excludedFields = ['_id', '_uuid', '_submission_time', '_tags', '_notes'];
+          
+          // Get fields that aren't metadata (don't start with underscore or aren't in excluded list)
+          const fields = Object.keys(firstSubmission).filter(key => 
+            !excludedFields.includes(key) && !key.startsWith('_')
+          );
+          
+          state.questions = fields.map(field => ({
+            name: field,
+            label: formatFieldLabel(field)
+          }));
+          
+          // Set the first question as default selected
+          if (state.questions.length > 0 && !state.selectedQuestion) {
+            state.selectedQuestion = state.questions[0].name;
+          }
+        }
+        
+        // Set form metadata
+        state.formMetadata = {
+          title: 'KoboCollect Form Data',
+          created: new Date().toISOString(),
+          submissions: state.formData.length
+        };
+        
+        // Initialize dashboard display
+        initDashboard();
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        showError(`Failed to fetch data: ${error.message}. Please check your API configuration.`);
+      } finally {
+        hideLoading();
+      }
+    }
+    
+    // Format field name to a more readable label
+    function formatFieldLabel(fieldName) {
+      // Replace underscores with spaces and capitalize words
+      return fieldName
+        .replace(/_/g, ' ')
+        .replace(/\//g, ' - ')
+        .replace(/\b\w/g, char => char.toUpperCase());
+    }
+    
+    // Initialize dashboard
+    function initDashboard() {
+      // Update dashboard title and metadata
+      dashboardTitle.textContent = state.formMetadata.title;
+      dashboardMeta.textContent = `${state.formMetadata.submissions} submissions · Last updated: ${new Date().toLocaleString()}`;
+      
+      // Populate question select
+      questionSelect.innerHTML = '';
+      state.questions.forEach(question => {
+        const option = document.createElement('option');
+        option.value = question.name;
+        option.textContent = question.label;
+        questionSelect.appendChild(option);
+      });
+      
+      // Set default values
+      questionSelect.value = state.selectedQuestion;
+      timeframeSelect.value = state.selectedTimeframe;
+      chartTypeSelect.value = state.chartType;
+      
+      // Apply filters and render data
+      applyFilters();
+      renderChart();
+      renderTable();
+      
+      // Update last updated time
+      lastUpdated.textContent = new Date().toLocaleString();
+    }
+    
+    // Handle filter change
+    function handleFilterChange() {
+      state.selectedQuestion = questionSelect.value;
+      state.selectedTimeframe = timeframeSelect.value;
+      state.chartType = chartTypeSelect.value;
+      
+      applyFilters();
+      renderChart();
+    }
+    
+    // Apply filters
+    function applyFilters() {
+      let filtered = [...state.formData];
+      
+      // Apply timeframe filter
+      if (state.selectedTimeframe !== 'all') {
+        const now = new Date();
+        let cutoff = new Date();
+        
+        switch (state.selectedTimeframe) {
+          case 'week':
+            cutoff.setDate(now.getDate() - 7);
+            break;
+          case 'month':
+            cutoff.setMonth(now.getMonth() - 1);
+            break;
+          case 'quarter':
+            cutoff.setMonth(now.getMonth() - 3);
+            break;
+          default:
+            break;
+        }
+        
+        filtered = filtered.filter(item => {
+          const submissionDate = new Date(item._submission_time);
+          return submissionDate >= cutoff;
+        });
+      }
+      
+      state.filteredData = filtered;
+      
+      // Update table title
+      tableTitle.textContent = `Raw Data (${state.filteredData.length} records)`;
+      
+      // Reset pagination
+      state.currentPage = 1;
+      
+      // Re-render table
+      renderTable();
+    }
+    
+    // Prepare chart data
+    function prepareChartData() {
+      if (!state.filteredData.length || !state.selectedQuestion) return [];
+      
+      const questionKey = state.selectedQuestion;
+      const counts = {};
+      
+      // Count occurrences of each value for the selected question
+      state.filteredData.forEach(item => {
+        const value = String(item[questionKey] || 'No Response');
+        counts[value] = (counts[value] || 0) + 1;
+      });
+      
+      // Convert to array format for charts
+      return Object.keys(counts).map(key => ({
+        name: key,
+        value: counts[key]
+      }));
+    }
+    
+    // Render chart
+    function renderChart() {
+      const data = prepareChartData();
+      const selectedQuestionLabel = state.questions.find(q => q.name === state.selectedQuestion)?.label || state.selectedQuestion;
+      
+      // Update chart title
+      chartTitle.textContent = `${selectedQuestionLabel} ${state.selectedTimeframe !== 'all' ? 
+        ` - ${state.selectedTimeframe === 'week' ? 'Last 7 Days' : 
+             state.selectedTimeframe === 'month' ? 'Last 30 Days' : 'Last 90 Days'}` : ''}`;
+      
+      // Destroy existing chart if it exists
+      if (state.chartInstance) {
+        state.chartInstance.destroy();
+      }
+      
+      if (!data.length) {
+        const ctx = dataChart.getContext('2d');
+        ctx.font = '16px sans-serif';
+        ctx.fillStyle = '#6b7280';
+        ctx.textAlign = 'center';
+        ctx.fillText('No data available', dataChart.width / 2, dataChart.height / 2);
+        return;
+      }
+      
+      // Prepare chart data for Chart.js
+      const chartData = {
+        labels: data.map(item => item.name),
+        datasets: [{
+          label: selectedQuestionLabel,
+          data: data.map(item => item.value),
+          backgroundColor: CHART_COLORS.slice(0, data.length),
+          borderColor: state.chartType !== 'pie' ? CHART_COLORS[0] : CHART_COLORS.slice(0, data.length),
+          borderWidth: 1
+        }]
+      };
+      
+      // Chart options
+      const options = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: state.chartType === 'pie' ? 'top' : 'top',
+            display: state.chartType === 'pie'
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                if (state.chartType === 'pie') {
+                  const label = context.label || '';
+                  const value = context.raw || 0;
+                  const total = context.dataset.data.reduce((acc, val) => acc + val, 0);
+                  const percentage = Math.round((value / total) * 100);
+                  return `${label}: ${value} (${percentage}%)`;
+                } else {
+                  return `${context.dataset.label}: ${context.raw}`;
+                }
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            display: state.chartType !== 'pie'
+          },
+          x: {
+            display: state.chartType !== 'pie'
+          }
+        }
+      };
+      
+      // Create new chart
+      state.chartInstance = new Chart(dataChart, {
+        type: state.chartType,
+        data: chartData,
+        options: options
+      });
+    }
+    
+    // Render table
+    function renderTable() {
+      // Get all fields to display
+      const fields = state.questions.map(q => q.name);
+      
+      // Clear existing table headers
+      const headerRow = dataTable.querySelector('thead tr');
+      headerRow.innerHTML = '';
+      
+      // Add ID header
+      const idHeader = document.createElement('th');
+      idHeader.textContent = 'ID';
+      headerRow.appendChild(idHeader);
+      
+      // Add submission time header
+      const timeHeader = document.createElement('th');
+      timeHeader.textContent = 'Submission Time';
+      headerRow.appendChild(timeHeader);
+      
+      // Add question headers
+      fields.forEach(field => {
+        const th = document.createElement('th');
+        th.textContent = formatFieldLabel(field);
+        headerRow.appendChild(th);
+      });
+      
+      // Clear existing table rows
+      const tbody = dataTable.querySelector('tbody');
+      tbody.innerHTML = '';
+      
+      // Calculate pagination
+      const totalPages = Math.ceil(state.filteredData.length / state.rowsPerPage);
+      const startIndex = (state.currentPage - 1) * state.rowsPerPage;
+      const endIndex = Math.min(startIndex + state.rowsPerPage, state.filteredData.length);
+      
+      // Add data rows for current page
+      for (let i = startIndex; i < endIndex; i++) {
+        const item = state.filteredData[i];
+        const row = document.createElement('tr');
+        
+        // Add ID cell
+        const idCell = document.createElement('td');
+        idCell.textContent = item._id || i + 1;
+        row.appendChild(idCell);
+        
+        // Add time cell
+        const timeCell = document.createElement('td');
+        timeCell.textContent = new Date(item._submission_time).toLocaleString();
+        row.appendChild(timeCell);
+        
+        // Add question cells
+        fields.forEach(field => {
+          const cell = document.createElement('td');
+          cell.textContent = item[field] !== undefined ? item[field] : '';
+          row.appendChild(cell);
+        });
+        
+        tbody.appendChild(row);
+      }
+      
+      // Update pagination info
+      if (state.filteredData.length > state.rowsPerPage) {
+        tablePagination.innerHTML = `Showing ${startIndex + 1} to ${endIndex} of ${state.filteredData.length} records`;
+        
+        // Add pagination controls
+        const paginationControls = document.createElement('div');
+        paginationControls.className = 'flex justify-center items-center space-x-2 mt-2';
+        
+        // Previous button
+        const prevButton = document.createElement('button');
+        prevButton.textContent = 'Previous';
+        prevButton.className = 'btn btn-secondary';
+        prevButton.disabled = state.currentPage === 1;
+        prevButton.addEventListener('click', () => {
+          if (state.currentPage > 1) {
+            state.currentPage--;
+            renderTable();
+          }
+        });
+        
+        // Next button
+        const nextButton = document.createElement('button');
+        nextButton.textContent = 'Next';
+        nextButton.className = 'btn btn-secondary';
+        nextButton.disabled = state.currentPage === totalPages;
+        nextButton.addEventListener('click', () => {
+          if (state.currentPage < totalPages) {
+            state.currentPage++;
+            renderTable();
+          }
+        });
+        
+        // Page info
+        const pageInfo = document.createElement('span');
+        pageInfo.textContent = `Page ${state.currentPage} of ${totalPages}`;
+        pageInfo.style.margin = '0 10px';
+        
+        paginationControls.appendChild(prevButton);
+        paginationControls.appendChild(pageInfo);
+        paginationControls.appendChild(nextButton);
+        
+        tablePagination.appendChild(paginationControls);
+      } else {
+        tablePagination.textContent = state.filteredData.length > 0 ? 
+          `Showing all ${state.filteredData.length} records` : 
+          'No records to display';
+      }
+    }
+    
+    // Export to CSV
+    function exportToCsv() {
+      if (!state.filteredData.length) {
+        showError('No data to export');
+        return;
+      }
+      
+      // Convert filtered data to CSV
+      const csv = Papa.unparse(state.filteredData);
+      
+      // Create download link
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      
+      link.setAttribute('href', url);
+      link.setAttribute('download', `kobo-data-export-${new Date().toISOString().slice(0, 10)}.csv`);
+      link.style.display = 'none';
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+    
+    // Process field for nested data structures
+    function getNestedValue(obj, path) {
+      if (!path) return obj;
+      
+      const parts = path.split('/');
+      let current = obj;
+      
+      for (const part of parts) {
+        if (current === null || current === undefined) {
+          return '';
+        }
+        current = current[part];
+      }
+      
+      return current;
+    }
+    
+    // Analyze field type for better visualization
+    function analyzeFieldType(question, data) {
+      // Sample up to 100 records
+      const sampleSize = Math.min(100, data.length);
+      const samples = [];
+      
+      for (let i = 0; i < sampleSize; i++) {
+        const value = data[i][question];
+        if (value !== null && value !== undefined) {
+          samples.push(value);
+        }
+      }
+      
+      // Check if field contains numbers
+      const isNumeric = samples.every(val => !isNaN(Number(val)));
+      
+      // Check if field contains dates
+      const isDate = samples.every(val => !isNaN(Date.parse(val)));
+      
+      // Check if field contains limited set of values (categorical)
+      const uniqueValues = new Set(samples);
+      const isCategorical = uniqueValues.size <= 10; // If 10 or fewer unique values
+      
+      return {
+        isNumeric,
+        isDate,
+        isCategorical
+      };
+    }
+    
+    // Initialize the app when the DOM is loaded
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
